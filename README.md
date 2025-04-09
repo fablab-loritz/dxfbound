@@ -52,7 +52,7 @@ pip install ezdxf matplotlib pillow
 
 2. **Lancez le programme :**
    ```bash
-   python dxf-bound.py
+   python dxf_bound.py
    ```
 
 3. **Interagissez avec l'interface graphique :**
