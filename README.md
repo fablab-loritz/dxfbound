@@ -85,6 +85,9 @@ Ce projet est distribué sous la licence [Creative Commons Attribution-NonCommer
 ├── image_logiciel.png     # Image affichée dans l'interface (optionnel)
 └── README.md              # Documentation
 ```
+## Commande de compilation
+
+pyinstaller --onefile --noconsole --icon=logo_dxf_bound.ico --add-data "logo_dxf_bound.ico;." --add-data "image_logiciel.png;." dxf_bound.py
 
 ## Contact
 
