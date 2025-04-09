@@ -2,6 +2,10 @@
 
 Le **DXF Bounding Box Calculator** ou **DXF_Bound** est un outil interactif permettant de lire, analyser, visualiser et calculer les dimensions des fichiers DXF. Il offre des fonctionnalités pour traiter un ou plusieurs fichiers DXF et afficher leurs dimensions, ainsi que leur surface.
 
+![image](https://github.com/user-attachments/assets/be1ebdb2-66bf-426e-9d2f-3499158482d5)
+
+
+
 ---
 
 ## Fonctionnalités
@@ -68,18 +72,6 @@ Les entités DXF sont tracées en utilisant `matplotlib` mais les courbes sont e
 
 ---
 
-## Personnalisation
-
-### Ajouter une icône ou une image
-Placez vos fichiers d'icône ou d'image dans le même répertoire que le script. Les fichiers requis :
-- `logo_dxf_bound.ico` : Icône de la fenêtre principale.
-- `image_logiciel.png` : Image affichée dans l'interface utilisateur.
-
-### Modifier les styles
-Les styles de boutons sont configurés avec `ttk.Style` et peuvent être modifiés dans la section **Configuration de l'interface utilisateur**.
-
----
-
 ## Structure du Projet
 
 ```
@@ -89,25 +81,6 @@ Les styles de boutons sont configurés avec `ttk.Style` et peuvent être modifi�
 ├── image_logiciel.png     # Image affichée dans l'interface (optionnel)
 └── README.md              # Documentation
 ```
-
----
-
-## Licence
-
-Ce projet est sous licence [MIT](LICENSE).
-
----
-
-## Contributions
-
-Les contributions sont les bienvenues ! Si vous souhaitez améliorer cet outil, suivez ces étapes :
-1. Forkez ce dépôt.
-2. Créez une branche pour votre fonctionnalité (`git checkout -b nouvelle-fonctionnalite`).
-3. Faites vos modifications et committez-les (`git commit -m "Ajout d'une fonctionnalité"`).
-4. Poussez sur votre branche (`git push origin nouvelle-fonctionnalite`).
-5. Ouvrez une Pull Request.
-
----
 
 ## Contact
 
