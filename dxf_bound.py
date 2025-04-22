@@ -6,6 +6,9 @@ import ezdxf
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
 
+
+APPROX = 1 #mm distance d'approximation
+
 # --- Utils ---
 def resource_path(relative_path):
     """ Permet de retrouver le chemin du fichier, même après compilation avec PyInstaller """
@@ -47,16 +50,10 @@ def calculate_bounding_box(file_path):
             center = entity.dxf.center
             radius = entity.dxf.radius
             points = [(center.x - radius, center.y - radius), (center.x + radius, center.y + radius)]
-        elif entity.dxftype() == 'ARC':
-            center = entity.dxf.center
-            radius = entity.dxf.radius
-            points = [(center.x - radius, center.y - radius), (center.x + radius, center.y + radius)]
-        elif entity.dxftype() == 'ELLIPSE':
-            bbox = entity.bbox()
-            points = [bbox.extmin, bbox.extmax]
-        elif entity.dxftype() == 'SPLINE':
-            spline_points = entity.control_points
-            points.extend(spline_points)
+        elif entity.dxftype() in ['ARC','ELLIPSE','SPLINE'] : 
+            #real point of an ar
+            points = entity.flattening(APPROX/unit_conversion_factor)# APPROXIMATION
+            points = [(x,y) for x,y,z in points]
 
         for point in points:
             x, y = point[0], point[1]
@@ -89,18 +86,11 @@ def plot_dxf(file_path):
             points = entity.get_points('xy')
             x_coords, y_coords = zip(*points)
             plt.plot(x_coords, y_coords, 'g-')
-        elif entity.dxftype() == 'CIRCLE':
-            center = entity.dxf.center
-            radius = entity.dxf.radius
-            circle = plt.Circle((center.x, center.y), radius, color='r', fill=False)
-            plt.gca().add_artist(circle)
-        elif entity.dxftype() == 'ARC':
-            center = entity.dxf.center
-            radius = entity.dxf.radius
-            start_angle = entity.dxf.start_angle
-            end_angle = entity.dxf.end_angle
-            arc = plt.Arc((center.x, center.y), 2*radius, 2*radius, angle=0, theta1=start_angle, theta2=end_angle, color='r')
-            plt.gca().add_artist(arc)
+        elif entity.dxftype() in ["CIRCLE","ELLIPSE","SPLINE"] :
+            points= entity.flattening(2*APPROX)
+            points = list(zip(*[(x,y) for x,y,z in points]))
+            print(len(points[0]))
+            plt.plot(points[0],points[1],"b-")
 
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
