@@ -1,13 +1,17 @@
+"""The dxf bound app to determine the total aera of an dxf"""
 import os
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import ezdxf
-import matplotlib.pyplot as plt
+import ezdxf.document
+import ezdxf.entities
+import ezdxf.layouts
 from PIL import Image, ImageTk
 
 
-APPROX = 1 #mm distance d'approximation
+APPROX = 0.001 #mm distance d'approximation
+AVAILABLE = ["LINE","ARC","LWPOLYLINE","POLYLINE","CIRCLE","ELLIPSE","SPLINE"]
 
 # --- Utils ---
 def resource_path(relative_path):
@@ -18,186 +22,267 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# --- DXF Processing ---
-def determine_unit(doc):
-    units = doc.header.get('$INSUNITS', 0)
-    if units == 4:
-        return 'mm', 1
-    elif units == 5:
-        return 'cm', 10
-    elif units == 6:
-        return 'm', 1000
-    else:
-        return 'unknown', 1
+class DxfFile():
+    def __init__(self,filename=None):
+        if filename is not None :
+            self.open(filename)
+        else :
+            self.unit_conversion_factor = 1 #default
+            self.unit = "unknown"
 
-def calculate_bounding_box(file_path):
-    doc = ezdxf.readfile(file_path)
-    unit, unit_conversion_factor = determine_unit(doc)
-    msp = doc.modelspace()
+    def open(self,filename):
+        """open the dxf file"""
+        self.filename = filename
+        self.doc = ezdxf.readfile(filename)
+        self.unit, self.unit_conversion_factor = self.determine_unit()
 
-    min_x, min_y, max_x, max_y = None, None, None, None
+    # --- DXF Processing ---
+    def determine_unit(self):
+        """return the right unit and giv the convert number to mm"""
+        units = self.doc.header.get('$INSUNITS', 0)
+        if units == 4:
+            return 'mm', 1
+        elif units == 5:
+            return 'cm', 10
+        elif units == 6:
+            return 'm', 1000
+        else:
+            return 'unknown', 1
+        
 
-    for entity in msp:
-        points = []
+    
+    def bounding_box_entity(self,entity:ezdxf.entities):
+
+        """return the bounding box of an entities"""
+
         if entity.dxftype() == 'LINE':
             points = [entity.dxf.start, entity.dxf.end]
+            points = [(x,y) for (x,y,z) in points]
         elif entity.dxftype() == 'LWPOLYLINE':
             points = entity.get_points('xy')
         elif entity.dxftype() == 'POLYLINE':
-            for v in entity.vertices:
-                points.append((v.dxf.location.x, v.dxf.location.y))
+            points = [(v.dxf.location.x, v.dxf.location.y) for v in entity.vertices]
         elif entity.dxftype() == 'CIRCLE':
             center = entity.dxf.center
             radius = entity.dxf.radius
-            points = [(center.x - radius, center.y - radius), (center.x + radius, center.y + radius)]
+            return [(center.x - radius, center.y - radius), (center.x + radius, center.y + radius)]
         elif entity.dxftype() in ['ARC','ELLIPSE','SPLINE'] : 
             #real point of an ar
-            points = entity.flattening(APPROX/unit_conversion_factor)# APPROXIMATION
+            points = entity.flattening(APPROX/self.unit_conversion_factor)# APPROXIMATION
             points = [(x,y) for x,y,z in points]
 
-        for point in points:
-            x, y = point[0], point[1]
-            if min_x is None or x < min_x:
-                min_x = x
-            if min_y is None or y < min_y:
-                min_y = y
-            if max_x is None or x > max_x:
-                max_x = x
-            if max_y is None or y > max_y:
-                max_y = y
+        minx,miny  = None,None
+        maxx,maxy = None,None
 
-    width = (max_x - min_x) * unit_conversion_factor
-    height = (max_y - min_y) * unit_conversion_factor
-    surface = width * height
+        
+        ## min max algo
+        for x,y in points :
+            if minx is None or x < minx :
+                minx = x
+            if maxx is None or x> maxx :
+                maxx = x
+            if miny is None or y< miny :
+                miny = y
+            if maxy is None or y> maxy :
+                maxy = y
 
-    return width, height, surface, unit
+        return (minx,miny),(maxx,maxy)
 
-def plot_dxf(file_path):
-    doc = ezdxf.readfile(file_path)
-    msp = doc.modelspace()
 
-    plt.figure()
-    for entity in msp:
+    def calculate_bounding_box(self):
+        """calculate the bounding box of the whole sheet"""
+        msp = self.doc.modelspace()
+
+        min_x, min_y, max_x, max_y = None, None, None, None
+    
+        for entity in msp:
+            if not entity.dxftype() in AVAILABLE :
+                continue
+            (minx,miny),(maxx,maxy) = self.bounding_box_entity(entity)
+            if min_x is None or minx < min_x:
+                min_x = minx
+            if  max_x is None or maxx> max_x :
+                max_x = maxx
+            if min_y is None or miny< min_y :
+                min_y = miny
+            if max_y is None or maxy> max_y :
+                max_y = maxy
+
+        self.minmax = min_x,min_y,max_x,max_y
+        width = (max_x - min_x) * self.unit_conversion_factor
+        height = (max_y - min_y) * self.unit_conversion_factor
+        surface = width * height
+
+        return width, height, surface, self.unit
+
+    def get_entitys(self):
+        for i in self.doc.modelspace():
+            yield i
+
+
+    
+
+class DraxDxf(tk.Canvas):
+    def __init__(self, master ,doc : DxfFile,*args,**kwargs):
+        super().__init__(master, *args,**kwargs)
+        self.doc = doc
+        self.size = 1
+        self.config(bg="WHITE")
+
+    def plot_canvas_entity(self,entity,offset):
+        """draw a single entity"""
         if entity.dxftype() == 'LINE':
             start = entity.dxf.start
             end = entity.dxf.end
-            plt.plot([start.x, end.x], [start.y, end.y], 'b-')
-        elif entity.dxftype() in ['LWPOLYLINE', 'POLYLINE']:
+            points = [(start.x ,start.y),(end.x, end.y)]
+        elif entity.dxftype() in ['LWPOLYLINE']:
             points = entity.get_points('xy')
-            x_coords, y_coords = zip(*points)
-            plt.plot(x_coords, y_coords, 'g-')
-        elif entity.dxftype() in ["CIRCLE","ELLIPSE","SPLINE"] :
-            points= entity.flattening(2*APPROX)
-            points = list(zip(*[(x,y) for x,y,z in points]))
-            print(len(points[0]))
-            plt.plot(points[0],points[1],"b-")
+        elif entity.dxftype() == 'POLYLINE':
+            points = entity.points_in_wcs()
+        elif entity.dxftype() in ["CIRCLE","ELLIPSE","SPLINE",'ARC'] :
+            points= entity.flattening(APPROX/self.doc.unit_conversion_factor)
+            points = [(x,y) for x,y,z in points]
 
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
+        points =[ (x*self.size+offset[0],y*self.size+offset[1]) for (x,y) in points]
+        self.create_line(points,fill="BLACK",smooth=False)
 
-# --- Application ---
-results = []
+    def plot_canvas(self):
+        self.delete("all")
+        """plot all figures"""
+        cvsize = self.winfo_width(),self.winfo_height()
+        self.size = min(cvsize[0]/(self.doc.minmax[2]-self.doc.minmax[0]),cvsize[1]/(self.doc.minmax[3]-self.doc.minmax[1]))
+        self.size *=0.95
+        center = (self.doc.minmax[0]+self.doc.minmax[2])/2,(self.doc.minmax[1]+self.doc.minmax[3])/2
+        wcenter  = cvsize[0]/2 ,cvsize[1]/2
+        diff = [wc-self.size*c for wc,c in zip(wcenter,center)]
 
-def open_single_file():
-    file_path = filedialog.askopenfilename(filetypes=[("DXF files", "*.dxf")])
-    if file_path:
+        for entity in self.doc.get_entitys():
+            if entity.dxftype() in AVAILABLE:
+                self.plot_canvas_entity(entity,diff)
+                self.update()
+            else :
+                print(entity.dxftype())
+
+
+class App(tk.Tk):
+    def __init__(self,*args,**kwargs):
+        """init the app"""
+        super().__init__(*args,**kwargs)
+
+        self.iconbitmap(resource_path("logo_dxf_bound.ico"))  # Ajouter une icône personnalisée
+        self.title("DXF Bounding Box Calculator")
+        self.geometry("800x410")
+
+        style = ttk.Style()
+        style.configure("RoundedButton.TButton",
+                        font=("Helvetica", 14),
+                        background="lightblue",
+                        foreground="black",
+                        padding=10,
+                        relief="flat")
+        style.map("RoundedButton.TButton",
+                background=[("active", "lightblue")],
+                relief=[("pressed", "flat")])
+
+        # Boutons principaux
+        self.cmdframe = tk.Frame(self)
+
+        self.open_multiple_button = ttk.Button(self.cmdframe, text="Ouvrir fichier  .dxf", command=self.open_multiple_files, style="RoundedButton.TButton")
+        self.open_multiple_button.pack(pady=10)
+
+        self.reset_button = ttk.Button(self.cmdframe, text="Réinitialisation des résultats", command=self.reset_results, style="RoundedButton.TButton")
+        self.reset_button.pack(pady=10)
+
+        self.cmdframe.grid(row=0,column=0)
+
+
+        self.resultframe = tk.Frame(self,bg="ORANGE")
+        self.resultlabel= ttk.Label(self.resultframe,text="Result")
+        self.resultlabel.grid(row=0,column=1)
+        self.canvas = DraxDxf(self.resultframe,DxfFile())
+        self.canvas.grid(row=1,column=1)
+
+        self.resultframe.grid(row=0,column=1)
+        self.resultframe.rowconfigure(1,weight=1)
+
+        self.columnconfigure(0,weight=4)
+        self.columnconfigure(1,weight=8)
+
+        # Charger et afficher l'image
         try:
-            width, height, surface, unit = calculate_bounding_box(file_path)
-            surface_cm2 = surface / 100.0  # mm² to cm²
-            surface_m2 = surface / 1e6     # mm² to m²
-
-            messagebox.showinfo("Résultat", f"Fichier : {os.path.basename(file_path)}\n\n"
-                                            f"Largeur : {width:.2f} {unit}\n"
-                                            f"Hauteur : {height:.2f} {unit}\n"
-                                            f"Surface : {surface:.2f} {unit}²\n"
-                                            f"Surface en cm² : {surface_cm2:.2f} cm²\n"
-                                            f"Surface en m² : {surface_m2:.6f} m²")
-            plot_dxf(file_path)
+            self.original_image = Image.open(resource_path("image_logiciel.png"))
+            self.photo = ImageTk.PhotoImage(self.original_image)
+            self.image_label = tk.Label(self.cmdframe, image=self.photo)
+            self.image_label.pack(pady=10, expand=True)
+            self.image_label.bind('<Configure>', self.resize_image)
         except Exception as e:
-            messagebox.showerror("Erreur", f"Impossible d'analyser le fichier : {e}")
+            print(f"Erreur lors du chargement de l'image : {e}")
 
-def open_multiple_files():
-    file_paths = filedialog.askopenfilenames(filetypes=[("DXF files", "*.dxf")])
-    if file_paths:
-        results.clear()
-        for file_path in file_paths:
-            try:
-                width, height, surface, unit = calculate_bounding_box(file_path)
-                results.append((width, height, surface, unit))
-                messagebox.showinfo("Résultat", f"Fichier : {os.path.basename(file_path)}\n\n"
-                                                f"Largeur : {width:.2f} {unit}\n"
-                                                f"Hauteur : {height:.2f} {unit}\n"
-                                                f"Surface : {surface:.2f} {unit}²")
-                plot_dxf(file_path)
-            except Exception as e:
-                messagebox.showerror("Erreur", f"Erreur avec le fichier {os.path.basename(file_path)} : {e}")
+        # --- Application ---
+        self.results = []
+        self.doc = None
 
-def show_cumulative_results():
-    if not results:
-        messagebox.showinfo("Aucune donnée", "Aucun fichier n'a été analysé.")
-        return
+    def resize_image(self,event:tk.Event):
+        """resize the image to addapt it to the needed size"""
+        new_width = min(event.width,400)
+        new_height = min(event.height,190)
 
-    total_surface = sum(result[2] for result in results)
-    total_surface_cm2 = total_surface / 100.0  # mm² to cm²
-    total_surface_m2 = total_surface / 1e6     # mm² to m²
+        print(new_height,new_width)
 
-    messagebox.showinfo("Résultat cumulé", f"Surface totale : {total_surface:.2f} mm²\n"
-                                           f"Surface totale en cm² : {total_surface_cm2:.2f} cm²\n"
-                                           f"Surface totale en m² : {total_surface_m2:.6f} m²")
+        aspect_ratio_image = self.original_image.width / self.original_image.height
+        aspect_ratio_window = new_width / new_height
 
-def resize_image(event):
-    new_width = event.width
-    new_height = event.height
+        if aspect_ratio_window > aspect_ratio_image:
+            new_width_adjusted = int(new_height * aspect_ratio_image)
+            resized_image = self.original_image.resize((new_width_adjusted, new_height))
+        else:
+            new_height_adjusted = int(new_width / aspect_ratio_image)
+            resized_image = self.original_image.resize((new_width, new_height_adjusted))
 
-    aspect_ratio_image = original_image.width / original_image.height
-    aspect_ratio_window = new_width / new_height
+        self.photo = ImageTk.PhotoImage(resized_image)
+        self.image_label.config(image=self.photo)
+        #self.image_label.image = self.photo
 
-    if aspect_ratio_window > aspect_ratio_image:
-        new_width_adjusted = int(new_height * aspect_ratio_image)
-        resized_image = original_image.resize((new_width_adjusted, new_height), Image.LANCZOS)
-    else:
-        new_height_adjusted = int(new_width / aspect_ratio_image)
-        resized_image = original_image.resize((new_width, new_height_adjusted), Image.LANCZOS)
 
-    photo = ImageTk.PhotoImage(resized_image)
-    image_label.config(image=photo)
-    image_label.image = photo
+    def open_multiple_files(self):
+        """open and computes multiples files"""
+        file_paths = filedialog.askopenfilenames(filetypes=[("DXF files", "*.dxf")])
+        if file_paths:
+            for file_path in file_paths:
+                self.doc = DxfFile(file_path)
+                try:
+                    width, height, surface, unit = self.doc.calculate_bounding_box()
+                    self.results.append((os.path.basename(file_path),width, height, surface, unit))
+                    self.canvas.doc = self.doc
+                    self.canvas.plot_canvas()
+                    self.show_results()
+
+                except Exception as e:
+                    messagebox.showerror("Erreur", f"Erreur avec le fichier {os.path.basename(file_path)} : {e}")
+    def reset_results(self):
+        self.results = []
+        self.show_results()
+
+    def show_results(self):
+        if len(self.results) <1 :
+            self.resultlabel.config(text="")
+        else :
+            name, width, height, surface, unit = self.results[-1]
+            string = f"Fichier : {name}\n"
+            string +=f"\tLargeur : {width:.2f} {unit}\n"
+            string +=f"\tHauteur : {height:.2f} {unit}\n"
+            string +=f"\tSurface : {surface:.2f} {unit}\n"
+
+            total_surface = sum(result[3] for result in self.results)
+            total_surface_cm2 = total_surface / 100.0  # mm² to cm²
+            total_surface_m2 = total_surface / 1e6     # mm² to m²
+
+            string += "Résultat cumulé \n"
+            string += f"\tSurface totale : {total_surface:.2f} mm²\n"
+            string += f"\tSurface totale en cm² : {total_surface_cm2:.2f} cm²\n"
+            string += f"\tSurface totale en m² : {total_surface_m2:.6f} m²"
+            self.resultlabel.config(text=string)
 
 # Configuration de la fenêtre principale
-root = tk.Tk()
-root.iconbitmap(resource_path("logo_dxf_bound.ico"))  # Ajouter une icône personnalisée
-root.title("DXF Bounding Box Calculator")
-root.geometry("400x410")
-
-style = ttk.Style()
-style.configure("RoundedButton.TButton",
-                font=("Helvetica", 14),
-                background="lightblue",
-                foreground="black",
-                padding=10,
-                relief="flat")
-style.map("RoundedButton.TButton",
-          background=[("active", "lightblue")],
-          relief=[("pressed", "flat")])
-
-# Boutons principaux
-open_single_button = ttk.Button(root, text="Choisir un fichier .dxf", command=open_single_file, style="RoundedButton.TButton")
-open_single_button.pack(pady=10)
-
-open_multiple_button = ttk.Button(root, text="Choisir plusieurs fichiers .dxf", command=open_multiple_files, style="RoundedButton.TButton")
-open_multiple_button.pack(pady=10)
-
-cumulative_button = ttk.Button(root, text="Afficher les résultats cumulés", command=show_cumulative_results, style="RoundedButton.TButton")
-cumulative_button.pack(pady=10)
-
-# Charger et afficher l'image
-try:
-    original_image = Image.open(resource_path("image_logiciel.png"))
-    photo = ImageTk.PhotoImage(original_image)
-    image_label = tk.Label(root, image=photo)
-    image_label.pack(pady=10, expand=True)
-    image_label.bind('<Configure>', resize_image)
-except Exception as e:
-    print(f"Erreur lors du chargement de l'image : {e}")
-
+root = App()
 root.mainloop()
