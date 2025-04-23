@@ -15,7 +15,7 @@ Le **DXF Bounding Box Calculator** ou **DXF_Bound** est un outil interactif perm
   - Conversion automatique des unités (mm, cm, m).
 
 - **Visualisation des fichiers DXF :**
-  - Affichage graphique des entités DXF en 2D avec `matplotlib`.
+  - Affichage graphique des entités DXF en 2D avec `tkinter.Canvas`.
   
 - **Résultats cumulés :**
   - Analyse et addition des surfaces de plusieurs fichiers DXF.
@@ -35,9 +35,11 @@ Avant de commencer, assurez-vous d'avoir installé les bibliothèques suivantes�
 - `Pillow` (pour le traitement des images)
 - `tkinter` (inclus avec Python par défaut)
 
+L'utilisation de venv et du fichier `requirements.txt` est fortement conseillé
+
 Pour installer les dépendances, exécutez :
 ```bash
-pip install ezdxf matplotlib pillow
+pip install -r requirements.txt
 ```
 
 ---
@@ -68,7 +70,7 @@ pip install ezdxf matplotlib pillow
 Le programme extrait les entités dans l'espace modèle (`modelspace`) et calcule les coordonnées minimales et maximales pour déterminer la largeur, la hauteur et la surface des fichiers DXF.
 
 ### Visualisation des fichiers DXF
-Les entités DXF sont tracées en utilisant `matplotlib` mais les courbes sont encore mal gérées
+Les entités DXF sont tracées en utilisant `tkinter.Canvas`
 
 ---
 
@@ -76,15 +78,6 @@ Les entités DXF sont tracées en utilisant `matplotlib` mais les courbes sont e
 
 Ce projet est distribué sous la licence [Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/).
 
-## Structure du Projet
-
-```
-.
-├── main.py                # Script principal
-├── logo_dxf_bound.ico     # Icône personnalisée (optionnel)
-├── image_logiciel.png     # Image affichée dans l'interface (optionnel)
-└── README.md              # Documentation
-```
 ## Commande de compilation
 
 pyinstaller --onefile --noconsole --icon=logo_dxf_bound.ico --add-data "logo_dxf_bound.ico;." --add-data "image_logiciel.png;." dxf_bound.py
