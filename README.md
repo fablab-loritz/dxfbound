@@ -2,7 +2,7 @@
 
 Le **DXF Bounding Box Calculator** ou **DXF_Bound** est un outil interactif permettant de lire, analyser, visualiser et calculer les dimensions des fichiers DXF. Il offre des fonctionnalités pour traiter un ou plusieurs fichiers DXF et afficher leurs dimensions, ainsi que leur surface.
 
-![image](https://github.com/user-attachments/assets/be1ebdb2-66bf-426e-9d2f-3499158482d5)
+![image](asset/screencapture1.png)
 
 
 
@@ -31,11 +31,10 @@ Avant de commencer, assurez-vous d'avoir installé les bibliothèques suivantes�
 
 - **Python 3.8+**
 - `ezdxf`
-- `matplotlib`
 - `Pillow` (pour le traitement des images)
 - `tkinter` (inclus avec Python par défaut)
 
-L'utilisation de venv et du fichier `requirements.txt` est fortement conseillé
+L'utilisation de `venv` et du fichier `requirements.txt` est fortement conseillé pour développer l'application
 
 Pour installer les dépendances, exécutez :
 ```bash
@@ -58,9 +57,9 @@ pip install -r requirements.txt
    ```
 
 3. **Interagissez avec l'interface graphique :**
-   - Cliquez sur le bouton **Choisir un fichier .dxf** pour analyser un fichier DXF.
-   - Cliquez sur **Choisir plusieurs fichiers .dxf** pour traiter plusieurs fichiers en même temps.
-   - Cliquez sur **Afficher les résultats cumulés** pour voir la somme des surfaces analysées pour les fichiers multiples.
+   - Cliquez sur **Ouvrir fichier .dxf** pour analyser un fichier DXF. On peut selectionner plusieurs fichier. Seul le dernier ficher est affiché.
+   - Cliquez sur **Copie des résultats** afin de copier la somme cumulé en m²
+   - Cliquez sur **Réinitialisation des resultats** pour réinitialiser les résultats cumulés.
 
 ---
 
@@ -74,14 +73,17 @@ Les entités DXF sont tracées en utilisant `tkinter.Canvas`
 
 ---
 
+## Commande de compilation
+Pour compiler l'application pour windows executer cette commande dans le dossier du projet
+
+```bash
+pyinstaller --onefile --noconsole --icon=logo_dxf_bound.ico --add-data "logo_dxf_bound.ico;." --add-data "image_logiciel.png;." dxf_bound.py
+```
+ 
+## Contact
+
+Pour toute question ou suggestion ou erreur, contactez-nous à [fablab@loritz.fr](mailto:fablab@loritz.fr) ou créer une nouvelle [Issue](https://github.com/fablab-loritz/dxfbound/issues)
+
 ## Licence
 
 Ce projet est distribué sous la licence [Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/).
-
-## Commande de compilation
-
-pyinstaller --onefile --noconsole --icon=logo_dxf_bound.ico --add-data "logo_dxf_bound.ico;." --add-data "image_logiciel.png;." dxf_bound.py
-
-## Contact
-
-Pour toute question ou suggestion, contactez-nous à [fablab@loritz.fr]
