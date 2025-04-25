@@ -130,9 +130,9 @@ class DxfFile:
             yield i
 
     def len_entitys(self):
-        if self.filename is None :
-            return 0 
-        else :
+        if self.filename is None:
+            return 0
+        else:
             return self.doc.modelspace().__len__()
 
 
@@ -147,7 +147,7 @@ class DrawDxf(tk.Canvas):
         self.config(bg="WHITE")
         self.bind("<Configure>", self.resize_canvas)
 
-    def resize_canvas(self,event:tk.Event):
+    def resize_canvas(self, event: tk.Event):
         """resize canvas with tkinter configure changements"""
         self.plot_canvas()
 
@@ -191,7 +191,12 @@ class DrawDxf(tk.Canvas):
                     self.plot_canvas_entity(entity, diff)
                 else:
                     print(entity.dxftype())
-            self.create_rectangle(*[self.size*x + diff[i%2]  for i,x in enumerate(self.doc.minmax)],outline="GREEN",activeoutline="RED")
+            self.create_rectangle(
+                *[self.size * x + diff[i % 2] for i, x in enumerate(self.doc.minmax)],
+                outline="GREEN",
+                activeoutline="RED",
+            )
+
 
 class App(tk.Tk):
     """The main app class"""
@@ -217,14 +222,15 @@ class App(tk.Tk):
         )
         style.configure(
             "RoundedLabel.TLabel",
-            font=("Helvetica",14),
+            font=("Helvetica", 14),
             background="lightblue",
             foreground="black",
             padding=10,
-            relief="flat")
-        
+            relief="flat",
+        )
+
         self.configure(bg="lightblue")
-        
+
         style.map(
             "RoundedButton.TButton",
             background=[("active", "lightblue")],
@@ -239,8 +245,7 @@ class App(tk.Tk):
             command=self.open_multiple_files,
             style="RoundedButton.TButton",
         )
-        self.open_multiple_button.grid(row=1,column=0,sticky=tk.EW)
-
+        self.open_multiple_button.grid(row=1, column=0, sticky=tk.EW)
 
         self.copy_button = ttk.Button(
             self,
@@ -248,7 +253,7 @@ class App(tk.Tk):
             style="RoundedButton.TButton",
         )
         self.copy_end()
-        self.copy_button.grid(row=2,column=0,sticky=tk.EW)
+        self.copy_button.grid(row=2, column=0, sticky=tk.EW)
 
         self.reset_button = ttk.Button(
             self,
@@ -256,26 +261,27 @@ class App(tk.Tk):
             command=self.reset_results,
             style="RoundedButton.TButton",
         )
-        self.reset_button.grid(row=3,column=0,sticky=tk.EW)
+        self.reset_button.grid(row=3, column=0, sticky=tk.EW)
 
-
-        self.resultlabel = ttk.Label(self, text="No Results" + "\n" * 8,style="RoundedLabel.TLabel")
-        self.resultlabel.grid(row=0, column=0,sticky=tk.EW)
+        self.resultlabel = ttk.Label(
+            self, text="No Results" + "\n" * 8, style="RoundedLabel.TLabel"
+        )
+        self.resultlabel.grid(row=0, column=0, sticky=tk.EW)
         self.canvas = DrawDxf(self, DxfFile())
-        self.canvas.grid(row=0, column=1,rowspan=5,sticky=tk.NSEW)
+        self.canvas.grid(row=0, column=1, rowspan=5, sticky=tk.NSEW)
 
-        self.columnconfigure(0) #, weight=4)
+        self.columnconfigure(0)  # , weight=4)
         self.columnconfigure(1, weight=8)
-        self.rowconfigure((1,2,3),weight=1)
-        self.rowconfigure((0,4),weight=2)
+        self.rowconfigure((1, 2, 3), weight=1)
+        self.rowconfigure((0, 4), weight=2)
 
         # Charger et afficher l'image
         try:
             self.original_image = Image.open(resource_path("image_logiciel.png"))
             self.photo = ImageTk.PhotoImage(self.original_image)
-            self.image_label = tk.Label(self, image=self.photo,bg="lightblue")
-            self.image_label.grid(row=4,column=0,sticky=tk.EW)
-            #self.image_label.bind("<Configure>", self.resize_image)
+            self.image_label = tk.Label(self, image=self.photo, bg="lightblue")
+            self.image_label.grid(row=4, column=0, sticky=tk.EW)
+            # self.image_label.bind("<Configure>", self.resize_image)
         except Exception as e:
             print(f"Erreur lors du chargement de l'image : {e}")
 
@@ -331,16 +337,14 @@ class App(tk.Tk):
         self.show_results()
 
     def copy_results(self):
-        total_surface_m2 = sum(result[3] for result in self.results)/1e6
+        total_surface_m2 = sum(result[3] for result in self.results) / 1e6
         self.clipboard_clear()
         self.clipboard_append(f"{total_surface_m2:.4f} m²")
         self.copy_button.config(text="Copié")
-        self.after(2000,self.copy_end)
+        self.after(2000, self.copy_end)
 
-    
     def copy_end(self):
-        self.copy_button.config(text="Copie des résultats",state=tk.NORMAL)
-
+        self.copy_button.config(text="Copie des résultats", state=tk.NORMAL)
 
     def show_results(self):
         """Show the result on the result frame"""
